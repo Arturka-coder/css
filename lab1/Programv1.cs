@@ -1,7 +1,6 @@
-﻿﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
 namespace GeneticSearch
 {
@@ -9,9 +8,9 @@ namespace GeneticSearch
     {
         struct Protein
         {
-            public string name; // protein name
-            public string organism; //organism name
-            public string amino_acids; // sequence of amino_asids
+            public string name;
+            public string organism; 
+            public string amino_acids;
         }
 
         struct Command
@@ -21,64 +20,51 @@ namespace GeneticSearch
             public string parameter2;
         }
 
-        static List<Command> ReadCommands(string filename)
+        //новая
+        static List<T> ReadFile<T>(string filename, Func<string[], T> parseLine)
         {
-            StreamReader reader = new StreamReader(filename);
-            List<Command> commands = new List<Command>();
+            List<T> result = new List<T>();
 
-            Command command;
-            command.name = String.Empty;
-            command.parameter1 = String.Empty;
-            command.parameter2 = String.Empty;
+            if (!File.Exists(filename)) return result;
 
-            while (!reader.EndOfStream)
+            using (StreamReader reader = new StreamReader(filename))
             {
-                string line = reader.ReadLine();
-                string[] parts = line.Split('\t');
+                while (!reader.EndOfStream)
+                {
+                    string? line = reader.ReadLine();
+                    if (string.IsNullOrWhiteSpace(line)) continue;
 
-                if (parts.Length == 2)
-                {
-                    command.name = parts[0];
-                    command.parameter1 = parts[1];
-                    command.parameter2 = String.Empty;
+                    string[] parts = line.Split('\t');
+                    T item = parseLine(parts);
+                    result.Add(item);
                 }
-                else
-                {
-                    command.name = parts[0];
-                    command.parameter1 = parts[1];
-                    command.parameter2 = parts[2];
-                }
-                commands.Add(command);
             }
-            reader.Close();
-            return commands;
+
+            return result;
         }
 
-        static List<Protein> ReadData(string filename)
+        static Command ParseCommand(string[] parts)
         {
-            //reader object to read data from file
-            StreamReader reader = new StreamReader(filename);
-
-            // empty list to keep data about proteins
-            List<Protein> data = new List<Protein>();
-
-            while (!reader.EndOfStream)
+            return new Command
             {
-                string line = reader.ReadLine();
-                string[] parts = line.Split('\t');
-                Protein protein;
-                protein.name = parts[0];
-                protein.organism = parts[1];
-                protein.amino_acids = Decoding(parts[2]);
-                data.Add(protein);
-            }
-            reader.Close();
-            return data;
+                name = parts.Length > 0 ? parts[0] : string.Empty,
+                parameter1 = parts.Length > 1 ? parts[1] : string.Empty,
+                parameter2 = parts.Length > 2 ? parts[2] : string.Empty
+            };
+        }
+        static Protein ParseProtein(string[] parts)
+        {
+            return new Protein
+            {
+                name = parts.Length > 0 ? parts[0] : string.Empty,
+                organism = parts.Length > 1 ? parts[1] : string.Empty,
+                amino_acids = parts.Length > 2 ? Decoding(parts[2]) : string.Empty
+            };
         }
 
         static string Encoding(string amino_acids)
         {
-            string encoded = String.Empty;
+            string encoded = string.Empty;
             for (int i = 0; i < amino_acids.Length; i++)
             {
                 char ch = amino_acids[i];
@@ -88,53 +74,38 @@ namespace GeneticSearch
                     count++;
                     i++;
                 }
-                if (count > 2) encoded = encoded + count + ch;
-                if (count == 1) encoded = encoded + ch;
-                if (count == 2) encoded = encoded + ch + ch;
+                if (count > 2) encoded += count.ToString() + ch;
+                else if (count == 1) encoded += ch;
+                else if (count == 2) encoded += ch.ToString() + ch;
             }
             return encoded;
         }
 
         static string Decoding(string amino_acids)
         {
-            string decoded = String.Empty;
+            string decoded = string.Empty;
             for (int i = 0; i < amino_acids.Length; i++)
             {
                 char ch = amino_acids[i];
                 if (char.IsDigit(ch))
                 {
-                    char letter = amino_acids[i + 1];
-                    int count = ch - '0';
-                    for (int j = 1; j < count; j++)
-                        decoded = decoded + letter;
+                    if (i + 1 < amino_acids.Length)
+                    {
+                        char letter = amino_acids[i + 1];
+                        int count = ch - '0';
+                        for (int j = 0; j < count; j++)
+                        {
+                            decoded += letter;
+                        }
+                        i++;
+                    }
                 }
-                else decoded = decoded + ch;
+                else
+                {
+                    decoded += ch;
+                }
             }
             return decoded;
-        }
-
-        static void PrintData(List<Protein> data)
-        {
-            for (int i = 0; i < data.Count; i++)
-            {
-                Console.WriteLine("Protein " + (i + 1));
-                Console.WriteLine(data[i].name);
-                Console.WriteLine(data[i].organism);
-                Console.WriteLine(data[i].amino_acids);
-                Console.WriteLine("========================");
-            }
-        }
-
-        static void PrintCommands(List<Command> commands)
-        {
-            for (int i = 0; i < commands.Count; i++)
-            {
-                Console.WriteLine("Command " + (i + 1));
-                Console.WriteLine(commands[i].name);
-                Console.WriteLine(commands[i].parameter1);
-                Console.WriteLine(commands[i].parameter2);
-                Console.WriteLine("========================");
-            }
         }
 
         static void HandleSearch(List<Protein> proteins, string searchSequence, StreamWriter writer)
@@ -166,19 +137,17 @@ namespace GeneticSearch
 
             for (int i = 0; i < proteins.Count; i++)
             {
-                if (proteins[i].name == protein1Name)
-                    p1 = proteins[i];
-                if (proteins[i].name == protein2Name)
-                    p2 = proteins[i];
+                if (proteins[i].name == protein1Name) p1 = proteins[i];
+                if (proteins[i].name == protein2Name) p2 = proteins[i];
             }
 
             writer.WriteLine("amino-acids difference:");
 
-            if (p1 == null || p2 == null)
+            if (!p1.HasValue || !p2.HasValue)
             {
                 string missing = "";
-                if (p1 == null) missing += protein1Name;
-                if (p2 == null)
+                if (!p1.HasValue) missing += protein1Name;
+                if (!p2.HasValue)
                 {
                     if (missing != "") missing += ", ";
                     missing += protein2Name;
@@ -196,8 +165,7 @@ namespace GeneticSearch
             {
                 char c1 = i < seq1.Length ? seq1[i] : '\0';
                 char c2 = i < seq2.Length ? seq2[i] : '\0';
-                if (c1 != c2)
-                    differences++;
+                if (c1 != c2) differences++;
             }
 
             writer.WriteLine(differences.ToString());
@@ -218,7 +186,7 @@ namespace GeneticSearch
 
             writer.WriteLine("amino-acid occurs:");
 
-            if (foundProtein == null)
+            if (!foundProtein.HasValue)
             {
                 writer.WriteLine("MISSING: " + proteinName);
                 return;
@@ -313,19 +281,15 @@ namespace GeneticSearch
             string sequencesFile = "sequences.0.txt";
             string commandsFile = "commands.0.txt";
             string outputFile = "genedata.txt";
-            string authorName = "Евгений";
+            string authorName = "Артур";
 
-            if (args.Length >= 1)
-                sequencesFile = args[0];
-            if (args.Length >= 2)
-                commandsFile = args[1];
-            if (args.Length >= 3)
-                outputFile = args[2];
-            if (args.Length >= 4)
-                authorName = args[3];
+            if (args.Length >= 1) sequencesFile = args[0];
+            if (args.Length >= 2) commandsFile = args[1];
+            if (args.Length >= 3) outputFile = args[2];
+            if (args.Length >= 4) authorName = args[3];
 
-            List<Protein> data = ReadData(sequencesFile);
-            List<Command> commands = ReadCommands(commandsFile);
+            List<Protein> data = ReadFile(sequencesFile, ParseProtein);
+            List<Command> commands = ReadFile(commandsFile, ParseCommand);
 
             PrintStartupInfo(sequencesFile, commandsFile, outputFile, data.Count, commands.Count);
 
