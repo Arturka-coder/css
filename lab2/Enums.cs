@@ -1,6 +1,5 @@
 namespace CatAndMouse
 {
-    // Состояние игрока
     public enum State
     {
         Winner,
@@ -9,7 +8,6 @@ namespace CatAndMouse
         NotInGame
     }
 
-    // Состояние игры
     public enum GameState
     {
         Start,

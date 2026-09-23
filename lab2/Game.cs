@@ -11,7 +11,7 @@ namespace CatAndMouse
         public Board Board { get; }
         public Player Cat { get; }
         public Player Mouse { get; }
-        public GameState CurrentState { get; private set; }  // ← переименовал State → CurrentState
+        public GameState CurrentState { get; private set; }
 
         private StreamWriter? writer;
 
@@ -29,14 +29,20 @@ namespace CatAndMouse
             using (writer = new StreamWriter(OutFile))
             {
                 WriteHeader();
-                reader.ReadLine(); // размер поля
+                reader.ReadLine(); // Пропускаем первую строку с размером поля
 
                 while (CurrentState != GameState.End)
                 {
                     string? line = reader.ReadLine();
-                    if (line == null) { CurrentState = GameState.End; break; }
+                    if (line == null) 
+                    { 
+                        CurrentState = GameState.End; 
+                        break; 
+                    }
+
                     line = line.Trim();
                     if (line.Length == 0) continue;
+
                     ProcessCommand(line);
                 }
 
@@ -46,11 +52,14 @@ namespace CatAndMouse
 
         private void ProcessCommand(string line)
         {
-            var parts = line.Split(new[] { ' ', '\t' },
-                StringSplitOptions.RemoveEmptyEntries);
+            var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
             char command = parts[0][0];
 
-            if (command == 'P') { PrintState(); return; }
+            if (command == 'P')
+            {
+                PrintState();
+                return;
+            }
 
             int steps = int.Parse(parts[1]);
             if (command == 'M') Mouse.Move(steps, Board);
@@ -61,7 +70,6 @@ namespace CatAndMouse
 
         private void CheckCatch()
         {
-            // тут сравниваем состояние ИГРОКОВ — это State (enum игрока)
             if (Cat.State == State.Playing &&
                 Mouse.State == State.Playing &&
                 Cat.Location == Mouse.Location)
@@ -104,7 +112,7 @@ namespace CatAndMouse
             writer.WriteLine();
 
             if (Mouse.State == State.Loser)
-                writer.WriteLine($"Mouse caught at:  {Mouse.Location}");
+                writer.WriteLine($"Mouse caught at: {Mouse.Location,2}");
             else
                 writer.WriteLine("Mouse evaded Cat");
         }

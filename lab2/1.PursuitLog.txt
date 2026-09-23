@@ -11,6 +11,6 @@ Cat Mouse  Distance
 
 
 Distance traveled:   Mouse    Cat
-                        28      7
+                        28       7
 
 Mouse caught at: 11
