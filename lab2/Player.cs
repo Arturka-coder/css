@@ -12,13 +12,11 @@ namespace CatAndMouse
         public Player(string name)
         {
             Name = name;
-            Location = -1;              // По умолчанию не в игре
+            Location = -1;             
             State = State.NotInGame;
             DistanceTraveled = 0;
         }
-
-        // Ход игрока. Первый ход задаёт стартовую позицию и не увеличивает пройденное расстояние.
-        public void Move(int steps, Board board)
+public void Move(int steps, Board board)
         {
             if (State == State.NotInGame)
             {
