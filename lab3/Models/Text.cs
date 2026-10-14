@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 
@@ -10,109 +9,102 @@ public class Text
     [XmlElement("sentence")]
     public List<Sentence> Sentences { get; set; } = new();
 
-    public static Text ParseFile(string path)
+    public Text() { }
+
+    public Text(string rawText)
     {
-        var rawText = File.ReadAllText(path, Encoding.UTF8);
-        var textObj = new Text();
+        ParseText(rawText);
+    }
 
-        string sentencePattern = @"(?<=[.!?])\s+";
-        var sentenceStrings = Regex.Split(rawText, sentencePattern);
+    private void ParseText(string rawText)
+    {
+        var sentenceMatches = Regex.Matches(rawText, @"[^.!?]+[.!?]?");
 
-        foreach (var rawSentence in sentenceStrings)
+        foreach (Match sMatch in sentenceMatches)
         {
-            if (string.IsNullOrWhiteSpace(rawSentence)) continue;
+            string rawSentence = sMatch.Value.Trim();
+            if (string.IsNullOrEmpty(rawSentence)) continue;
 
-            var sentence = new Sentence();
-            string tokenPattern = @"\w+|[^\w\s]";
-            var matches = Regex.Matches(rawSentence, tokenPattern);
+            Sentence sentence = new Sentence();
+            var tokens = Regex.Matches(rawSentence, @"[\wА-Яа-яЁёƏəĞğIıİiÖöŞşÜü]+|[.,\/#!$%\^&\*;:{}=\-_`~()?]");
 
-            foreach (Match match in matches)
+            foreach (Match token in tokens)
             {
-                string val = match.Value;
-                if (Regex.IsMatch(val, @"^\w+$"))
+                string val = token.Value;
+                if (Regex.IsMatch(val, @"[\wА-Яа-яЁёƏəĞğIıİiÖöŞşÜü]+"))
                 {
-                    var word = new Word(val);
-                    sentence.Words.Add(word);
-                    sentence.Tokens.Add(word);
+                    sentence.Words.Add(new Word(val));
                 }
                 else
                 {
-                    sentence.Tokens.Add(new Punctuation(val));
+                    sentence.Punctuations.Add(new Punctuation(val));
                 }
             }
 
-            if (sentence.Tokens.Count > 0)
-                textObj.Sentences.Add(sentence);
-        }
-
-        return textObj;
-    }
-
-    public IEnumerable<Sentence> OrderByWordCount() => Sentences.OrderBy(s => s.WordCount);
-
-    public IEnumerable<Sentence> OrderByLength() => Sentences.OrderBy(s => s.FullLength);
-
-    public List<Word> FindWordsInQuestions(int length)
-    {
-        return Sentences
-            .Where(s => s.IsQuestion())
-            .SelectMany(s => s.Words)
-            .Where(w => w.Length == length)
-            .GroupBy(w => w.Value.ToLower())
-            .Select(g => g.First())
-            .ToList();
-    }
-
-    public int RemoveWordsStartingWithConsonant(int length)
-    {
-        int count = 0;
-        foreach (var sentence in Sentences)
-        {
-            count += sentence.Words.RemoveAll(w => w.Length == length && w.StartsWithConsonant());
-            sentence.Tokens.RemoveAll(t => t is Word w && w.Length == length && w.StartsWithConsonant());
-        }
-        return count;
-    }
-
-    public int ReplaceWordsInSentence(int sentenceNumber, int length, string replacement)
-    {
-        int count = 0;
-        var sentence = Sentences[sentenceNumber - 1];
-
-        for (int i = 0; i < sentence.Tokens.Count; i++)
-        {
-            if (sentence.Tokens[i] is Word w && w.Length == length)
+            if (sentence.Words.Count > 0 || sentence.Punctuations.Count > 0)
             {
-                var newWord = new Word(replacement);
-                sentence.Tokens[i] = newWord;
-
-                int wordIdx = sentence.Words.IndexOf(w);
-                if (wordIdx != -1) sentence.Words[wordIdx] = newWord;
-                count++;
+                Sentences.Add(sentence);
             }
         }
-        return count;
     }
 
-    public int RemoveStopWords(IEnumerable<string> stopWordsLines)
-    {
-        var stopSet = new HashSet<string>(stopWordsLines.Select(w => w.Trim()), StringComparer.OrdinalIgnoreCase);
-        int count = 0;
+    // --- Реализация логики ТЗ ---
 
+    // Пункт 1: Предложения по возрастанию количества слов
+    public List<Sentence> GetSortedByWordCount()
+    {
+        return Sentences.OrderBy(s => s.Words.Count).ToList();
+    }
+
+    // Пункт 3: Уникальные слова заданной длины в вопросительных предложениях
+    public HashSet<string> GetUniqueWordsInQuestions(int length)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var sentence in Sentences.Where(s => s.IsQuestion()))
+        {
+            foreach (var word in sentence.Words.Where(w => w.Value.Length == length))
+            {
+                result.Add(word.Value);
+            }
+        }
+        return result;
+    }
+
+    // Пункт 4: Удаление слов заданной длины, начинающихся с согласной
+    public void RemoveWordsByLengthAndConsonant(int length)
+    {
+        string vowels = "аеёиоуыэюяaeiouy";
         foreach (var sentence in Sentences)
         {
-            count += sentence.Words.RemoveAll(w => stopSet.Contains(w.Value));
-            sentence.Tokens.RemoveAll(t => t is Word w && stopSet.Contains(w.Value));
+            sentence.Words.RemoveAll(w => 
+                w.Value.Length == length && 
+                !string.IsNullOrEmpty(w.Value) && 
+                !vowels.Contains(char.ToLower(w.Value[0]))
+            );
         }
-        return count;
     }
 
-    public void ExportToXml(string outputPath)
+    // Пункт 5: Замена слов заданной длины в указанном предложении
+    public void ReplaceWordsInSentence(int sentenceIndex, int wordLength, string replacement)
     {
-        var serializer = new XmlSerializer(typeof(Text));
-        using var writer = new StreamWriter(outputPath, false, Encoding.UTF8);
-        serializer.Serialize(writer, this);
+        if (sentenceIndex >= 0 && sentenceIndex < Sentences.Count)
+        {
+            foreach (var word in Sentences[sentenceIndex].Words)
+            {
+                if (word.Value.Length == wordLength)
+                {
+                    word.Value = replacement;
+                }
+            }
+        }
     }
 
-    public override string ToString() => string.Join(" ", Sentences.Select(s => s.ToString()));
+    // Пункт 6: Удаление стоп-слов
+    public void RemoveStopWords(HashSet<string> stopWords)
+    {
+        foreach (var sentence in Sentences)
+        {
+            sentence.Words.RemoveAll(w => stopWords.Contains(w.Value.ToLower()));
+        }
+    }
 }

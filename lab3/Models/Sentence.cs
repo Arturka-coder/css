@@ -9,31 +9,23 @@ public class Sentence
     [XmlElement("word")]
     public List<Word> Words { get; set; } = new();
 
-    [XmlIgnore]
-    public List<Token> Tokens { get; set; } = new();
+    [XmlElement("punctuation")]
+    public List<Punctuation> Punctuations { get; set; } = new();
 
-    // Пустой конструктор обязателен для XmlSerializer!
     public Sentence() { }
 
-    public int WordCount => Words.Count;
-    public int FullLength => ToString().Length;
-
+    // Проверка на вопросительное предложение (нужно для пункта 3 ТЗ)
     public bool IsQuestion()
     {
-        var lastPunct = Tokens.OfType<Punctuation>().LastOrDefault();
-        return lastPunct != null && lastPunct.Value.Contains('?');
+        return Punctuations.Any(p => p.Value.Contains('?'));
     }
 
     public override string ToString()
     {
         var sb = new StringBuilder();
-        for (int i = 0; i < Tokens.Count; i++)
+        foreach (var word in Words)
         {
-            var current = Tokens[i];
-            sb.Append(current.Value);
-
-            if (i < Tokens.Count - 1 && current is Word && Tokens[i + 1] is Word)
-                sb.Append(' ');
+            sb.Append(word.Value).Append(" ");
         }
         return sb.ToString().Trim();
     }
