@@ -1,0 +1,4 @@
+Object-oriented programming helps developers write clean, modular, and maintainable code.
+The concordance tool analyzes the text file and counts every word's frequency line by line.
+It's very important to test how the parser handles punctuation, hyphenated words, and apostrophes.
+Programming isn't just about writing code; it's about solving complex problems efficiently!
