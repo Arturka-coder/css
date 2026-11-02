@@ -13,8 +13,6 @@ public class Sentence
     public List<Punctuation> Punctuations { get; set; } = new();
 
     public Sentence() { }
-
-    // Проверка на вопросительное предложение (нужно для пункта 3 ТЗ)
     public bool IsQuestion()
     {
         return Punctuations.Any(p => p.Value.Contains('?'));

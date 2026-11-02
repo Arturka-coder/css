@@ -48,15 +48,16 @@ public class Text
         }
     }
 
-    // --- Реализация логики ТЗ ---
-
-    // Пункт 1: Предложения по возрастанию количества слов
     public List<Sentence> GetSortedByWordCount()
     {
         return Sentences.OrderBy(s => s.Words.Count).ToList();
     }
 
-    // Пункт 3: Уникальные слова заданной длины в вопросительных предложениях
+    public List<Sentence> GetSortedByLength()
+    {
+        return Sentences.OrderBy(s => s.ToString().Length).ToList();
+    }
+
     public HashSet<string> GetUniqueWordsInQuestions(int length)
     {
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -70,7 +71,6 @@ public class Text
         return result;
     }
 
-    // Пункт 4: Удаление слов заданной длины, начинающихся с согласной
     public void RemoveWordsByLengthAndConsonant(int length)
     {
         string vowels = "аеёиоуыэюяaeiouy";
@@ -83,8 +83,6 @@ public class Text
             );
         }
     }
-
-    // Пункт 5: Замена слов заданной длины в указанном предложении
     public void ReplaceWordsInSentence(int sentenceIndex, int wordLength, string replacement)
     {
         if (sentenceIndex >= 0 && sentenceIndex < Sentences.Count)
@@ -99,7 +97,6 @@ public class Text
         }
     }
 
-    // Пункт 6: Удаление стоп-слов
     public void RemoveStopWords(HashSet<string> stopWords)
     {
         foreach (var sentence in Sentences)

@@ -5,70 +5,65 @@ namespace CatAndMouse
 {
     public class Game
     {
-        public static string InputFile = "";
-        public static string OutFile = "";
+        public static string InputFile = "1.ChaseData.txt";
+        public static string OutFile = "1.PursuitLog.txt";
 
-        public Board? Board { get; }
-        public Player? Cat { get; }
-        public Player? Mouse { get; }
-        public bool WithBoard { get; }
-        public bool WithCat { get; }
-        public bool WithMouse { get; }
+        public Board? Board { get; private set; }
+        public Player Cat { get; }
+        public Player Mouse { get; }
         public GameState CurrentState { get; private set; }
 
         private StreamWriter? writer;
 
-        public Game(int boardSize, bool withCat = true, bool withMouse = true, bool withBoard = true)
+        public Game(int boardSize)
         {
-            WithBoard = withBoard && boardSize > 0;
-            WithCat = withCat && WithBoard;
-            WithMouse = withMouse && WithBoard;
+            if (boardSize > 0)
+            {
+                Board = new Board(boardSize);
+            }
 
-            if (WithBoard) Board = new Board(boardSize);
-            if (WithCat) Cat = new Player("Cat");
-            if (WithMouse) Mouse = new Player("Mouse");
-
+            Cat = new Player("Cat");
+            Mouse = new Player("Mouse");
             CurrentState = GameState.Start;
         }
 
         public void Run()
         {
-            using (var reader = new StreamReader(InputFile))
             using (writer = new StreamWriter(OutFile))
             {
                 WriteHeader();
 
-                if (!WithBoard)
+                // 1. Проверка на размер поля <= 0
+                if (Board == null)
                 {
-                    writer.WriteLine("Поле не создано — игра невозможна.");
-                    WriteFooter();
+                    WriteFooter(isBoardError: true);
                     return;
                 }
 
-                string? sizeLine = reader.ReadLine();
-                if (sizeLine == null || !int.TryParse(sizeLine.Trim(), out int declaredSize) || declaredSize <= 0)
-                {
-                    writer.WriteLine("Ошибка: некорректный размер поля в первой строке.");
-                    WriteFooter();
-                    return;
-                }
+                if (!File.Exists(InputFile)) return;
 
-                while (CurrentState != GameState.End)
+                string[] lines = File.ReadAllLines(InputFile);
+
+                try
                 {
-                    string? line = reader.ReadLine();
-                    if (line == null)
+                    // Пропускаем первую строку (в ней записан размер поля)
+                    for (int i = 1; i < lines.Length; i++)
                     {
-                        CurrentState = GameState.End;
-                        break;
+                        if (CurrentState == GameState.End) break;
+
+                        string line = lines[i].Trim();
+                        if (string.IsNullOrEmpty(line)) continue;
+
+                        ProcessCommand(line);
                     }
 
-                    line = line.Trim();
-                    if (line.Length == 0) continue;
-
-                    ProcessCommand(line);
+                    WriteFooter();
                 }
-
-                WriteFooter();
+                catch (ArgumentOutOfRangeException ex)
+                {
+                    // 2. Обработка выхода кота/мыши за пределы поля
+                    WriteFooter(playerOutOfRangeMessage: ex.Message);
+                }
             }
         }
 
@@ -85,38 +80,21 @@ namespace CatAndMouse
                 return;
             }
 
-            if (command != 'M' && command != 'C') return;
-            if (parts.Length < 2) return;
-            if (!int.TryParse(parts[1], out int steps)) return;
-
-            if (command == 'C')
+            if ((command == 'C' || command == 'M') && parts.Length > 1 && int.TryParse(parts[1], out int steps))
             {
-                if (!WithCat) return;
+                if (command == 'C')
+                    Cat.Move(steps, Board!);
+                else
+                    Mouse.Move(steps, Board!);
 
-                if (Cat!.State == State.NotInGame && (steps < 1 || steps > Board!.Size)) return;
-
-                Cat.Move(steps, Board!);
-                CheckCatch();
-                return;
-            }
-
-            if (command == 'M')
-            {
-                if (!WithMouse) return;
-
-                if (Mouse!.State == State.NotInGame && (steps < 1 || steps > Board!.Size)) return;
-
-                Mouse.Move(steps, Board!);
                 CheckCatch();
             }
         }
 
         private void CheckCatch()
         {
-            if (!WithCat || !WithMouse) return;
-
-            if (Cat!.State == State.Playing &&
-                Mouse!.State == State.Playing &&
+            if (Cat.State == State.Playing &&
+                Mouse.State == State.Playing &&
                 Cat.Location == Mouse.Location)
             {
                 Mouse.Lose();
@@ -127,7 +105,6 @@ namespace CatAndMouse
 
         private int GetDistance()
         {
-            if (Cat == null || Mouse == null) return 0;
             return Math.Abs(Cat.Location - Mouse.Location);
         }
 
@@ -136,92 +113,61 @@ namespace CatAndMouse
             writer!.WriteLine("Cat and Mouse");
             writer.WriteLine();
 
-            if (!WithBoard) writer.WriteLine("(нет поля)");
-            else if (WithCat && WithMouse) writer.WriteLine("Cat Mouse  Distance");
-            else if (WithCat) writer.WriteLine("Cat  Distance");
-            else if (WithMouse) writer.WriteLine("Mouse  Distance");
-            else writer.WriteLine("(нет игроков)");
+            if (Board == null)
+                writer.WriteLine("(нет поля)");
+            else
+                writer.WriteLine("Cat  Mouse  Distance");
 
             writer.WriteLine("-------------------");
         }
 
         private void PrintState()
         {
-            if (!WithBoard)
+            if (Board == null)
             {
                 writer!.WriteLine("(нет поля)");
                 return;
             }
 
-            if (!WithCat && !WithMouse)
-            {
-                writer!.WriteLine("(нет игроков)");
-                return;
-            }
+            string catStr = Cat.State == State.NotInGame ? "??" : Cat.Location.ToString();
+            string mouseStr = Mouse.State == State.NotInGame ? "??" : Mouse.Location.ToString();
 
-            if (WithCat && WithMouse)
+            if (Cat.State == State.Playing && Mouse.State == State.Playing)
             {
-                string catStr = Cat!.State == State.NotInGame ? "??" : Cat.Location.ToString();
-                string mouseStr = Mouse!.State == State.NotInGame ? "??" : Mouse.Location.ToString();
-
-                if (Cat.State != State.NotInGame && Mouse.State != State.NotInGame)
-                    writer!.WriteLine($"{catStr,3} {mouseStr,5} {GetDistance(),9}");
-                else
-                    writer!.WriteLine($"{catStr,3} {mouseStr,5}");
-            }
-            else if (WithCat)
-            {
-                string catStr = Cat!.State == State.NotInGame ? "??" : Cat.Location.ToString();
-                writer!.WriteLine($"{catStr,3}");
+                writer!.WriteLine($"{catStr,3} {mouseStr,5} {GetDistance(),9}");
             }
             else
             {
-                string mouseStr = Mouse!.State == State.NotInGame ? "??" : Mouse.Location.ToString();
-                writer!.WriteLine($"{mouseStr,3}");
+                writer!.WriteLine($"{catStr,3} {mouseStr,5}");
             }
         }
 
-        private void WriteFooter()
+        private void WriteFooter(bool isBoardError = false, string? playerOutOfRangeMessage = null)
         {
             writer!.WriteLine("-------------------");
             writer.WriteLine();
             writer.WriteLine();
 
-            if (!WithBoard)
+            if (isBoardError)
             {
                 writer.WriteLine("Поле не создано — игра не состоялась.");
                 return;
             }
 
-            if (WithCat && WithMouse)
+            if (!string.IsNullOrEmpty(playerOutOfRangeMessage))
             {
-                writer.WriteLine("Distance traveled:   Mouse    Cat");
-                writer.WriteLine($"                       {Mouse!.DistanceTraveled,3}     {Cat!.DistanceTraveled,3}");
-                writer.WriteLine();
+                writer.WriteLine($"{playerOutOfRangeMessage}. Игра не состоялась.");
+                return;
+            }
 
-                if (Mouse.State == State.Loser)
-                    writer.WriteLine($"Mouse caught at: {Mouse.Location,2}");
-                else
-                    writer.WriteLine("Mouse evaded Cat");
-            }
-            else if (WithMouse)
-            {
-                writer.WriteLine("Distance traveled:   Mouse");
-                writer.WriteLine($"                       {Mouse!.DistanceTraveled,3}");
-                writer.WriteLine();
-                writer.WriteLine("Mouse evaded Cat");
-            }
-            else if (WithCat)
-            {
-                writer.WriteLine("Distance traveled:   Cat");
-                writer.WriteLine($"                       {Cat!.DistanceTraveled,3}");
-                writer.WriteLine();
-                writer.WriteLine("Mouse evaded Cat");
-            }
+            writer.WriteLine("Distance traveled:   Mouse    Cat");
+            writer.WriteLine($"                       {Mouse.DistanceTraveled,2}      {Cat.DistanceTraveled,2}");
+            writer.WriteLine();
+
+            if (Mouse.State == State.Loser)
+                writer.WriteLine($"Mouse caught at: {Mouse.Location,2}");
             else
-            {
-                writer.WriteLine("Игроков нет — игра не состоялась.");
-            }
+                writer.WriteLine("Mouse evaded Cat");
         }
     }
 }
