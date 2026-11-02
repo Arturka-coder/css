@@ -1,0 +1,6 @@
+Passenger;Boeing 737;4500;185;15;2400
+Cargo;Boeing 747 Freighter;8200;12;110;11000
+Business;Gulfstream G650;12960;19;2;950
+Passenger;Airbus A320;6100;150;14;2200
+Cargo;Antonov An-124;5400;6;120;12500
+Business;Bombardier Global 7500;14260;17;2;900
