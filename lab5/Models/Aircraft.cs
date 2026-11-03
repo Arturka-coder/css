@@ -5,11 +5,10 @@ namespace AirlineProject.Models
     public abstract class Aircraft : IComparable<Aircraft>
     {
         public string Model { get; set; }
-        public double FlightRange { get; set; }        // Дальность полета (км)
-        public int PassengerCapacity { get; set; }     // Вместимость пассажиров
-        public double CargoCapacity { get; set; }      // Грузоподъемность (тонны)
-        public double FuelConsumption { get; set; }    // Потребление горючего (кг/час)
-
+        public double FlightRange { get; set; }       
+        public int PassengerCapacity { get; set; }    
+        public double CargoCapacity { get; set; }      
+        public double FuelConsumption { get; set; }    
         protected Aircraft(string model, double flightRange, int passengerCapacity, double cargoCapacity, double fuelConsumption)
         {
             Model = model;
